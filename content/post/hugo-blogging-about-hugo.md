@@ -17,5 +17,5 @@ One part that I've already figured out is the blog platform I wanted to use. Sin
 
 ## Github
 
-I started writing this in dropbox, but I'm going to move it to a github repo. I _think_ that will make it simpler to trigger lambda to load it to s3. I'm going to stop writing for a minute in order to turn this into a git repo and publish it to github.
+I started writing this in dropbox, but I'm going to move it to a github repo. I _think_ that will make it simpler to trigger lambda to load it to s3. I'm going to stop writing for a minute in order to turn this into a git repo and publish it to github. Ok that's done now. It's in [this public repo](https://github.com/samuelson/writebadcode). Since hugo lets you set if a file is a draft or not, it should be ok to just always push the live version.
 

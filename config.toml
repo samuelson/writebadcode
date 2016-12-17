@@ -1,6 +1,7 @@
 baseurl = "http://writebadcode.com/"
 title = "Write Bad Code"
 languageCode = "en-us"
+theme = "beautifulhugo"
 
 [Params]
   author = "Josh Samuelson"
