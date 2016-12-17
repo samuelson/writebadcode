@@ -1,6 +1,6 @@
 +++
-date = "2016-12-16T18:34:06-08:00"
-draft = true
+date = "2016-12-17T11:41:22-08:00"
+draft = false
 title = "Rust First Project"
 
 +++

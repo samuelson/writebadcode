@@ -1,7 +1,7 @@
 +++
 title = "Rust: Hello World"
-date = "2016-12-16T16:59:11-08:00"
-draft = true
+date = "2016-12-17T11:41:18-08:00"
+draft = false
 
 +++
 

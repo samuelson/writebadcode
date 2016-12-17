@@ -89,3 +89,5 @@ exports.handler = function(event, context) {
 </pre>
 
 So there's a snag, well once I cleaned up all my typos I found a real issue, the require('github') doesn't work because npm didn't install the package locally. [This looks like it's promising](https://aws.amazon.com/blogs/compute/nodejs-packages-in-lambda/). Basically I just needed to install the github package with `npm install --prefix=. github`. So that's working now. I'm ready to test triggering a push.
+
+The message got through, and it looks like it should've triggered the exec, but I don't see that in the logs. I'm going to comment out the if statement and try running it again.
