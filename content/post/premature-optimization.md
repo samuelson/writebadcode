@@ -1,7 +1,7 @@
 +++
 title = "Premature Optimization"
-draft = true
-date = "2016-12-12T08:17:05-08:00"
+draft = false
+date = "2016-12-19T21:34:55-08:00"
 
 +++
 
