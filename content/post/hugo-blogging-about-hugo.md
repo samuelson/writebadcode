@@ -1,6 +1,6 @@
 +++
-date = "2016-12-17T10:53:02-08:00"
-draft = true
+date = "2016-12-19T21:07:23-08:00"
+draft = false
 title = "Hugo, github, lambda, and s3"
 
 +++
@@ -11,7 +11,7 @@ The other major thing that I see changing is that a lot of the burden of computa
 
 I want to set up a publishing chain where I can write and update the site easily. That involves github, AWS lambda, and S3. As of writing this, I haven't figured out how it works or set it up. Since the theme of this blog is about writing bad code and figuring things out, I'm going to try to document the process of figuring out how to do this, meta I know.
 
-This is a running document of the process including the false starts and distractions. It's "Write bad code", not "Only show the finished product". If you want to see the finished product just skip to the end.
+This is a running document of the process including the false starts and distractions. It's "Write bad code", not "Only show the finished product". If you want to see the finished product just skip to the end, the very last section has the complete solution.
 
 ## Hugo
 
@@ -207,4 +207,134 @@ I think think that using the callback is important. Node is asynchronous, so if 
 
 I realized I should try testing it locally instead of just thrashing at it on lambda. In order to do that I had to actaully call the main exports.handler() function. Oddly, the nodegit part works just fine when I run it locally.
 
-I did notice that the upload was failing so after a lot of thrash I figured out that I need to stick the upload within the callback of the exec. This makes sense if you think about it, but I'm just not used to having to do that kind of thing. Actually the more I read about it the more I think the issue is with it not doing things synchronously. [According to this article](https://aws.amazon.com/blogs/compute/running-executables-in-aws-lambda/) it's bess to use the child_process.spawn or child_process.spawnSync to run external commands. 
+I did notice that the upload was failing so after a lot of thrash I figured out that I need to stick the upload within the callback of the exec. This makes sense if you think about it, but I'm just not used to having to do that kind of thing. Actually the more I read about it the more I think the issue is with it not doing things synchronously. [According to this article](https://aws.amazon.com/blogs/compute/running-executables-in-aws-lambda/) it's best to use the child_process.spawn or child_process.spawnSync to run external commands. 
+
+After some more thrash, I'm totally stumped. It seems like node just runs things in whatever order it wants and there's nothing you can do about it. Why the fuck did Amazon think than an asychronous language would be a good choice for lambda? Like isn't the whole point of it that it only runs when you need it? Node makes sense for a persistent web backend where it'll have to handle lots of requests, but lambda is abstracting that away, so why async?
+
+### Forget git
+I realized that I don't actually need git for this, since github provides a zip file to download. Since the whole thing was a little jankey anyway and the puprose of this wasn't to write a bunch of Node code, I'm going to just do that. Honestly, I'm thinking about just making the whole thing a bash script and calling that from node. In the write bad code spirit, I suppose I should be ok with that, but it feels like giving up.  Maybe I'll write the whole thing in Rust or go and just ship a static binary. At least that will feel fancy and not lazy.
+
+## Mors Latina
+
+I'm at that uncomfortable point in a project where I know that it's possible, and I'm really... really close to getting it working, but it just isn't quite there. The thing is, if I'm going to figure this out, I'll either have to throw out all the work I've done in Node and start with something more reasonable, or I'll actually have to learn why Node is acting this way. I'll direct you, dear reader, to my [undergratudate advisor's blog](http://www.alteredfocus.net/mors-latina-the-latin-death-and-the-grief-of-learning/), skip ahead to the part where it says "MORS LATINA" if you're impatient. The idea is that learning Latin is much like going through the stages of grief. That's kindof what I'm feeling right now. I'm either at Anger or Depression... but I'll soldier on and try to figure this out.
+
+## Actually learning how Node works
+
+So, what do I know so far? Node is asynchronous and lambda doesn't wait for things to actually complete. That is evidencing itself in the fact that things are running in seemingly random order and not completing. This is bad default behaviour and makes Node a seemingly terrible choice for this application. However, it must be possible to deal with this, so I'll just have to read about how to get things to actually work the way I want them to.
+
+## Recollecting
+
+I took a little step back, and ran through a few of the [tutorials on codeschool.com](https://www.codeschool.com/) (A site which is totally worth buying a subscription to, by the way). I think the issue is that I wasn't taking the _event driven_ nature of Node seriously. Rather than trying to stick everything in callbacks, I really needed to tie the actions to specific events. I also broke my code out into functions to make it a bit easier to deal with.  Here's where I ended up:
+
+<pre>
+exports.handler = function(event, context, callback) {
+ var stream = fs.createWriteStream("/tmp/master.zip");
+ http
+   .get("https://github.com/samuelson/writebadcode/archive/master.zip")
+   .pipe(stream);
+ stream.on('finish',function(){
+   exec("cd /tmp; unzip master.zip",function(resp){
+     console.log(resp);
+     exec("cd /tmp/writebadcode-master;/var/task/hugo",function(resp){
+       console.log(resp);
+       upload_directory("/tmp/writebadcode-master/public");
+     });
+   });
+ });
+
+ callback(null,"Complete");
+}
+</pre>
+
+The important thing to note is the `stream.on`. Basically this is registering a callback to happen when the stream object gets the 'finish' event. That last callback is to tell lambda to wait until the thing is actually done before quitting. I also had to move to using /tmp because mysteriously it stopped letting me do things in the local dir. It's fine, I don't even mind anymore, whatever Amazon, it's not you it's me.
+
+## Amazon is terrible
+So yeah, if they didn't have such a uniquely useful service and dominating market share I'd say screw them, but yeah here we are. I got everything working finally, the files were uploading, the magic is real. And when I went to admire my handiwork, to sit back and marvel at the work my hands had wrought reflect my divine creator and say "it is good". Unfortunately s3 defaults to mime types of application/octect for s3 files. So yeah the website doesn't work. After much handwringing, I came up with this solution... which actually wasn't too bad:
+
+<pre>
+var mime = require('mime');
+...
+s3.putObject({
+  Bucket: targetBucket,
+  Key: keyName,
+  Body: data,
+  ContentType: mime.lookup(file),
+},function(err, resp) {
+...
+</pre>
+
+So, yeah I just had to actually find the content type and look it up.
+
+## τετέλεσται
+
+Fucking finally, this whole thing is working. If I had it to do again, I would definitely just do the damn thing in ruby or python and not deal with Node, but I guess I learned something.
+
+Here is the final beast:
+<pre>
+var AWS = require('aws-sdk');
+var s3 = new AWS.S3();
+var http = require('request');
+var fs = require('fs');
+var localPath = require('path').join(__dirname,"tmp")
+var exec = require('child_process').exec;
+var targetBucket = "writebadcode.com";
+var mime = require('mime');
+
+var upload_directory = function( dirName, baseDir ) {
+  // For the initial run grab the baseDir
+  if ( ! baseDir ) {
+    baseDir = dirName + "/";
+  }
+  fs.readdir( dirName, function( err, files ) {
+    if ( err ) {
+      console.error( "Error reading directory:" + err );
+      process.exit( 1 );
+    }
+    files.forEach( function ( baseFile, index ) {
+      var file = dirName + "/" + baseFile;
+      fs.stat( file , function ( err, fileStats ) {
+        if ( fileStats.isDirectory() ) {
+          upload_directory ( file, baseDir );
+        } else {
+          fs.readFile( file, function ( err, data ) {
+            //Remove first part of dirname
+            keyName = file.replace( baseDir, '' )
+            console.log( keyName );
+            s3.putObject({
+              Bucket: targetBucket,
+              Key: keyName,
+              Body: data,
+              ContentType: mime.lookup(file),
+            },function(err, resp) {
+              if (err) console.log(err, err.stack);
+              else     console.log(resp);
+            });
+          });
+        }
+      });
+    });
+  });
+}
+
+exports.handler = function(event, context, callback) {
+  var stream = fs.createWriteStream("/tmp/master.zip");
+  http
+    .get("https://github.com/samuelson/writebadcode/archive/master.zip")
+    .pipe(stream);
+  stream.on('finish',function(){
+    exec("cd /tmp; unzip master.zip",function(resp){
+      console.log(resp);
+      exec("cd /tmp; cd writebadcode-master;/var/task/hugo",function(resp){
+        console.log(resp);
+        upload_directory("/tmp/writebadcode-master/public");
+      });
+    });
+  });
+
+  callback(null,"Complete");
+}
+</pre>
+
+Sorry if I left out explaining some steps, I got to a point where I was sick of writing up every false start and every misstep. Just rest assured, dear reader, that this was a pain in the ass. But now you can start where I left off so hopefully it will be less painful for you.
+
+Apart from the code above, you need the `hugo` binary and to install the needed Node modules with `npm install --prefix . mime` or whatever.
