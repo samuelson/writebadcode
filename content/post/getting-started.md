@@ -11,5 +11,3 @@ The point of this blog is not to encourage bad habits, it's to engourage getting
 I realized that writing code is pretty much the same. I didn't start writing good code until I'd written a lot of bad code first. Even more than that, I wonder how many people out there are interested in learning how to code and haven't started because they might get it wrong.
 
 So, I came up with this idea, and it happens that this domain was available, so I figured I ought to start a blog. I don't want to just talk about code, I'll post about all kinds of things I'm trying to learn, or that I think might help other learn. This is the first post, and I'm new at this, so it's probably crap. At least I hope it's crap compared to what comes later.
-
-One other thing: it's pretty easy and safe to be cynical instead of taking risks. This is going to be a place where I'll push the boundaries of my skill and comfort, and maybe you'll feel inspired to try something too. That's also the reason I'm recording these as podcasts too, since that's outside my comfort zone.
